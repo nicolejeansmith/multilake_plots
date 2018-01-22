@@ -1,18 +1,20 @@
 ---
-title: "R Notebook"
+title: "Viz of least and most compact lakes"
 output: html_notebook
+date: 2018-01-22
+author: Nicole Smith
 ---
 ```{r}
 library(tidyverse)
 library(sf)
 library(leaflet)
 
-load("C:/Users/smithn78/Dropbox/CL_HUB_GEO/Nicole_Assorted_R/gnis_workspace.RData")
+load('lagos_lakes_4ha_select.RData')
 ```
 
 
 ```{r}
-lakes_4ha <- lakes_poly %>%
+lakes <- lakes_poly %>%
   mutate(compactness = (4*pi*Shape_Area)/(Shape_Length**2))
 
 top_100_lakes <- lakes_4ha %>%
