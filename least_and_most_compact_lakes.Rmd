@@ -4,37 +4,21 @@ output: html_notebook
 date: 2018-01-22
 author: Nicole Smith
 ---
-```{r}
+```{r setup, warning=FALSE}
 library(tidyverse)
 library(sf)
 library(leaflet)
 
+#lakes_poly <- st_read("D:/Continental_Limnology/Data_Working/LAGOS_US_Predecessors.gdb", "NHDWaterbody_LAGOS", stringsAsFactors = FALSE) %>%
+#  filter(AreaHa >= 4) %>%
+#  select(Permanent_Identifier, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length)
+#save.image("C:/Users/smithn78/Dropbox/ContLimno Nicole/MyR/multilake_plots/lagos_lakes_4ha_select.RData")
 load('lagos_lakes_4ha_select.RData')
 ```
 
-
-```{r}
-lakes <- lakes_poly %>%
-  mutate(compactness = (4*pi*Shape_Area)/(Shape_Length**2))
-
-top_100_lakes <- lakes_4ha %>%
-  top_n(-100, compactness) %>%
-  arrange(-compactness)
-
-top_100_centroids <- plot_lakes %>%
-  st_centroid()
-```
-
-```{r}
-(m <- leaflet() %>%
-   addProviderTiles(providers$Hydda.Base) %>%
-   addCircleMarkers(data = top_100_centroids, radius = 4, fillOpacity = 1, stroke = FALSE) %>%
-   addPolygons(data=top_100_lakes, weight = 2)
-   )
-
-```
-
-```{r}
+I'll use the `multiplot` function from the [Cookbook for R](http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/) site with an [adaptation to add a title](http://www.guru-gis.net/multiplot-function-for-ggplot/).
+```{r functions, echo=FALSE, warning=FALSE, message=FALSE}
+## From R cookbook
 # Multiple plot function
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -89,6 +73,50 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL, title="") {
   }
 }
 ```
+
+I'll be using the isoperimetric quotient, a common measure of compactness that compares the area of the shape to the area of a circle with the same perimeter. With this measure, a value of 1 indicates the lake is nearly circular, and lower values represent less compactness.
+```{r}
+lakes <- lakes_poly %>%
+  mutate(compactness = (4*pi*Shape_Area)/(Shape_Length**2)) %>%
+  arrange(-compactness) %>%
+  mutate(compact_rank = row_number())
+View(lakes)
+```
+
+Distribution of compactness.
+
+```{r}
+(hist <- ggplot(data=lakes, aes(x=compactness)) +
+   geom_histogram(alpha = .5, fill = "blue") +
+   geom_vline(aes(xintercept=median(compactness)))
+)
+```
+Prepare a few subsets for plotting.
+```{r}
+most_compact_100 <- lakes %>%
+  top_n(100, compact_rank)
+
+least_compact_100 <- lakes %>%
+  top_n(-100, compact_rank)
+
+midpoint <- floor(nrow(lakes)/2)
+
+mid_compact_100 <- lakes %>%
+  filter(between(compact_rank, midpoint-50, midpoint+49))
+
+```
+
+
+```{r}
+(m <- leaflet() %>%
+   addProviderTiles(providers$Hydda.Base) %>%
+   addCircleMarkers(data = top_100_centroids, radius = 4, fillOpacity = 1, stroke = FALSE) %>%
+   addPolygons(data=top_100_lakes, weight = 2)
+   )
+
+```
+
+
 
 
 
