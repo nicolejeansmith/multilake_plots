@@ -1,0 +1,188 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(sf)
+library(leaflet)
+
+load("C:/Users/smithn78/Dropbox/CL_HUB_GEO/Nicole_Assorted_R/gnis_workspace.RData")
+```
+
+
+```{r}
+lakes_4ha <- lakes_poly %>%
+  mutate(compactness = (4*pi*Shape_Area)/(Shape_Length**2))
+
+top_100_lakes <- lakes_4ha %>%
+  top_n(-100, compactness) %>%
+  arrange(-compactness)
+
+top_100_centroids <- plot_lakes %>%
+  st_centroid()
+```
+
+```{r}
+(m <- leaflet() %>%
+   addProviderTiles(providers$Hydda.Base) %>%
+   addCircleMarkers(data = top_100_centroids, radius = 4, fillOpacity = 1, stroke = FALSE) %>%
+   addPolygons(data=top_100_lakes, weight = 2)
+   )
+
+```
+
+```{r}
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL, title="") {
+  require(grid)
+ 
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+ 
+  numPlots = length(plots)
+ 
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+ 
+  if (nchar(title)>0){
+    layout<-rbind(rep(0, ncol(layout)), layout)
+  }
+ 
+  if (numPlots==1) {
+    print(plots[[1]])
+ 
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout), heights =if(nchar(title)>0){unit(c(0.5, rep(5,nrow(layout)-1)), "null")}else{unit(c(rep(5, nrow(layout))), "null")} )))
+ 
+    # Make each plot, in the correct location
+    if (nchar(title)>0){
+      grid.text(title, vp = viewport(layout.pos.row = 1, layout.pos.col = 1:ncol(layout)))
+    }
+ 
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+ 
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+
+```{r}
+# Help from http://rstudio-pubs-static.s3.amazonaws.com/2852_379274d7c5734f979e106dcf019ec46c.html
+plots <- list()
+boxes <- list()
+
+for (i in 1:nrow(plot_lakes)) {
+  bbox <- st_bbox(plot_lakes[i,])
+  boxes[[i]] <- bbox
+}
+
+x_max_range <- max(as.vector(sapply(boxes, function(x) x['xmax'] - x['xmin'])))
+y_max_range <- max(as.vector(sapply(boxes, function(x) x['ymax'] - x['ymin'])))
+
+max_dim <- max(y_max_range, x_max_range)
+
+for (i in 1:nrow(plot_lakes)) {
+ lake_to_plot <- plot_lakes[i,] %>% as("Spatial") %>% fortify(region = 'Permanent_Identifier')
+ centroid <- plot_lakes[i,] %>% st_centroid() %>% st_coordinates()
+ x_limits <- c(centroid[,'X'] + .5*max_dim, centroid[,'X'] - .5*max_dim)
+ y_limits <- c(centroid[,'Y'] + .5*max_dim, centroid[,'Y'] - .5*max_dim)
+ p1 <- ggplot(lake_to_plot) +
+   geom_polygon(aes(x=long, y=lat, group=group), fill = NA, color = 'black') +
+   theme_void() +
+   coord_fixed() +
+   xlim(x_limits) +
+   ylim(y_limits)
+ plots[[i]] <- p1
+}
+
+png(filename = "C:/Users/smithn78/Documents/Nicole temp/test_plot_lakes.png", width = 1920, height = 1200)
+(mplot <- multiplot(plotlist = plots, cols = 10, title = "100 least compact lakes in LAGOS (not to scale)"))
+dev.off()
+
+svg("C:/Users/smithn78/Documents/Nicole temp/test_plot_lakes_2.svg", width = 14, height = 11)
+mplot <- multiplot(plotlist = plots, cols = 10, title = "100 least compact lakes in LAGOS (not to scale)")
+dev.off()
+
+# ggplot(plot_lakes) +
+#   geom_sf(aes(geometry = Shape), fill = 'white') +
+#   theme_void()
+
+```
+
+
+```{r}
+test <- plot_lakes %>%
+  st_zm(drop=TRUE) %>%
+  st_cast("POLYGON") %>%
+  st_bbox()
+
+glimpse(test)
+```
+
+
+```{r}
+plot_lakes <- lakes_4ha %>%
+  sample_n(100)
+# Help from http://rstudio-pubs-static.s3.amazonaws.com/2852_379274d7c5734f979e106dcf019ec46c.html
+plots <- list()
+# boxes <- list()
+# 
+# for (i in 1:nrow(plot_lakes)) {
+#   bbox <- st_bbox(plot_lakes[i,])
+#   boxes[[i]] <- bbox
+# }
+
+# x_max_range <- max(as.vector(sapply(boxes, function(x) x['xmax'] - x['xmin'])))
+# y_max_range <- max(as.vector(sapply(boxes, function(x) x['ymax'] - x['ymin'])))
+# 
+# max_dim <- max(y_max_range, x_max_range)
+
+for (i in 1:nrow(plot_lakes)) {
+ lake_to_plot <- plot_lakes[i,] %>% as("Spatial") %>% fortify(region = 'Permanent_Identifier')
+ # centroid <- plot_lakes[i,] %>% st_centroid() %>% st_coordinates()
+ # x_limits <- c(centroid[,'X'] + .5*max_dim, centroid[,'X'] - .5*max_dim)
+ # y_limits <- c(centroid[,'Y'] + .5*max_dim, centroid[,'Y'] - .5*max_dim)
+ p <- ggplot(lake_to_plot) +
+   geom_polygon(aes(x=long, y=lat, group=group), fill = NA, color = 'black') +
+   theme_void() +
+   coord_fixed()
+   # xlim(x_limits) +
+   # ylim(y_limits)
+ plots[[i]] <- p
+}
+
+png(filename = "C:/Users/smithn78/Dropbox/CL_HUB_GEO/Internal Maps/Lakes and Reservoirs Multiplots/sample_lakes_100.png", width = 1920, height = 1200)
+(mplot <- multiplot(plotlist = plots, cols = 10, title = "100 random lakes in LAGOS (not to scale)"))
+dev.off()
+
+
+# ggplot(plot_lakes) +
+#   geom_sf(aes(geometry = Shape), fill = 'white') +
+#   theme_void()
+
+```
+
