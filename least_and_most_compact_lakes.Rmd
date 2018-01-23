@@ -24,7 +24,7 @@ states <- st_read('C:/Users/smithn78/Dropbox/CL_HUB_GEO/QAQC/LAGOS_US_GIS_Data_v
 save.image("C:/Users/smithn78/Dropbox/ContLimno Nicole/MyR/multilake_plots/compactness.RData")
 
 
-#load('lagos_lakes_4ha_select.RData')
+#load('compactness.RData')
 ```
 
 I'll use the `multiplot` function from the [Cookbook for R](http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/) site with an [adaptation to add a title](http://www.guru-gis.net/multiplot-function-for-ggplot/).
@@ -150,25 +150,24 @@ mid_compact_100 <- lakes %>%
 ```
 
 The plots!
-```{r, message=FALSE}
+```{r, message=FALSE, out.width="100%"}
 staged1 <- stage_plots(most_compact_100, "lagoslakeid")
 (p1 <- multiplot(plotlist=staged1, cols=10, title = "100 most compact lakes in LAGOS (4ha+)"))
 ```
 
 
-```{r}
+```{r, message=FALSE, out.width="100%"}
 staged2 <- stage_plots(least_compact_100, "lagoslakeid")
 (p2 <- multiplot(plotlist=staged2, cols=10, title = "100 least compact lakes in LAGOS (4ha+)"))
 ```
 
-```{r}
+```{r, message=FALSE, out.width="100%"}
 staged3 <- stage_plots(mid_compact_100, "lagoslakeid")
 (p3 <- multiplot(plotlist=staged3, cols=10, title = "100 lakes of median compactness in LAGOS (4ha+)"))
 ```
 
-Where are the most compact lakes?
-```{r, warning=FALSE}
-
+Where are the 100 **most** compact lakes?
+```{r, echo=FALSE, warning=FALSE}
 popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
 (m1 <- leaflet() %>%
    addProviderTiles(providers$Esri.WorldImagery) %>%
@@ -178,14 +177,19 @@ popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
    )
 ```
 
-```{r}
-lakes %>% 
-  as.data.frame() %>%
-  group_by(STATE) %>% 
-  summarize(mean_compactness = mean(compactness)) %>% 
-  arrange(mean_compactness)
+Where are the 100 **least** compact lakes?
+```{r, echo=FALSE, warning=FALSE}
+(m2 <- leaflet() %>%
+   addProviderTiles(providers$Esri.WorldImagery) %>%
+   addPolygons(data=least_compact_100, weight = 2) %>%
+   addCircleMarkers(data = st_centroid(most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
+                    popup = ~sprintf(popup_template, GNIS_Name, FCode))
+)
 ```
-```{r}
+
+
+Are there compactness patterns across the United States?
+```{r, out.width="100%"}
 lake_points <- st_centroid(lakes) %>%
   mutate(x = st_coordinates(.)[,"X"]) %>%
   mutate(y = st_coordinates(.)[,"Y"])
@@ -199,12 +203,5 @@ ggplot() +
 ```
 
 
-Where are the most compact lakes?
-```{r}
-(m1 <- leaflet() %>%
-   addProviderTiles(providers$Esri.WorldImagery) %>%
-   addPolygons(data=most_compact_100, weight = 2) %>%
-   addCircleMarkers(data = st_centroid(most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE)
-   )
-```
+
 
