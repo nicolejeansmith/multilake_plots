@@ -6,24 +6,21 @@ output:
   html_document: default
   html_notebook: default
 ---
-```{r setup, echo = FALSE, warning=FALSE, message=FALSE, cache=TRUE}
+```{r setup, echo = FALSE, warning=FALSE, message=FALSE, cache=FALSE}
 library(tidyverse)
 library(sf)
 library(leaflet)
 
-# lakes_poly <- st_read("D:/Continental_Limnology/Data_Working/LAGOS_US_Predecessors.gdb", "NHDWaterbody_LAGOS", stringsAsFactors = FALSE) #%>%
+# lakes_poly <- st_read("D:/Continental_Limnology/Data_Working/LAGOS_US_Predecessors.gdb", "NHDWaterbody_LAGOS", stringsAsFactors = FALSE) %>%
 #   st_zm(drop=TRUE) %>%
 #   filter(AreaHa >= 4) %>%
 #   mutate(FCode = factor(FCode)) %>%
 #   mutate(FType = factor(FType)) %>%
-#   select(Permanent_Identifier, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length) %>%
-#   st_simplify(TRUE, 5000) %>%
-#   st_transform("+proj=longlat +datum=WGS84")
+#   select(Permanent_Identifier, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length)
 # 
 # states <- st_read('C:/Users/smithn78/Dropbox/CL_HUB_GEO/QAQC/LAGOS_US_GIS_Data_v0.2.gdb','STATE') %>%
-#   st_simplify(TRUE, 5000) %>%
-#   st_transform("+proj=longlat +datum=WGS84")
-
+#   st_simplify(TRUE, 5000)
+# 
 # save.image("C:/Users/smithn78/Dropbox/ContLimno Nicole/MyR/multilake_plots/compactness.RData")
 
 load('compactness.RData')
@@ -161,14 +158,28 @@ staged3 <- stage_plots(mid_compact_100, "lagoslakeid")
 p3 <- multiplot(plotlist=staged3, cols=10)
 ```
 
+```{r}
+#Prep the layers for leaflet
+proj_string <- "+proj=longlat +datum=WGS84"
+L.most_compact_100 <- most_compact_100 %>%
+  st_transform(proj_string)
+L.least_compact_100 <- least_compact_100 %>%
+  st_simplify(dTolerance=200) %>%
+  st_transform(proj_string)
+L.states <- states %>%
+  st_transform(proj_string)
+```
+
+
 Where are the 100 **most** compact lakes?
 ```{r, echo=FALSE, warning=FALSE, out.width="100%"}
 popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
 
 (m1 <- leaflet() %>%
-   addProviderTiles(providers$Esri.WorldImagery) %>%
-   addPolygons(data=most_compact_100, weight = 2) %>%
-   addCircleMarkers(data = st_centroid(most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
+  addProviderTiles(providers$Esri.WorldImagery, options=providerTileOptions(opacity=.75)) %>%
+  addPolygons(data=L.states, weight = 2, opacity = .25, color="white", fill=NULL) %>%
+  addPolygons(data=L.most_compact_100, weight = 2) %>%
+  addCircleMarkers(data = st_centroid(L.most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
                     popup = ~sprintf(popup_template, GNIS_Name, FCode))
    )
 ```
@@ -176,11 +187,13 @@ popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
 Where are the 100 **least** compact lakes?
 ```{r, echo=FALSE, warning=FALSE, out.width="100%"}
 (m2 <- leaflet() %>%
-   addProviderTiles(providers$Esri.WorldImagery) %>%
-   addPolygons(data=least_compact_100, weight = 2) %>%
-   addCircleMarkers(data = st_centroid(least_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
+   addProviderTiles(providers$Esri.WorldImagery, options=providerTileOptions(opacity=.75)) %>%
+   addPolygons(data=L.states, weight = 2, opacity=.25, color="white", fill=NULL) %>%
+   addPolygons(data=L.least_compact_100, weight = 2) %>%
+   addCircleMarkers(data = st_centroid(L.least_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
                     popup = ~sprintf(popup_template, GNIS_Name, FCode))
    )
+
 ```
 
 
@@ -191,7 +204,7 @@ lake_points <- st_centroid(lakes) %>%
   mutate(y = st_coordinates(.)[,"Y"])
 
 ggplot() +
-  stat_summary_hex(data = lake_points, aes(x, y,  z=compactness), binwidth = c(.6, .6)) +
+  stat_summary_hex(data = lake_points, aes(x, y,  z=compactness), binwidth = c(50000, 50000)) +
   geom_sf(data = states, color = 'grey50', fill = NA, size = .5) +
   scale_fill_gradient2(midpoint=median(lake_points$compactness), name = "compactness") +
   theme_void()
