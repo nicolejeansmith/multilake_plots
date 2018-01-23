@@ -129,7 +129,7 @@ lakes <- lakes_poly %>%
 
 Distribution of compactness.
 
-```{r}
+```{r, echo=FALSE}
 (hist <- ggplot(data=lakes, aes(x=compactness)) +
    geom_histogram(alpha = .5, fill = "blue") +
    geom_vline(aes(xintercept=median(compactness)))
@@ -167,7 +167,7 @@ staged3 <- stage_plots(mid_compact_100, "lagoslakeid")
 ```
 
 Where are the 100 **most** compact lakes?
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, out.width="100%"}
 popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
 (m1 <- leaflet() %>%
    addProviderTiles(providers$Esri.WorldImagery) %>%
@@ -179,12 +179,12 @@ popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
 
 Where are the 100 **least** compact lakes?
 ```{r, echo=FALSE, warning=FALSE}
-(m2 <- leaflet() %>%
-   addProviderTiles(providers$Esri.WorldImagery) %>%
-   addPolygons(data=least_compact_100, weight = 2) %>%
-   addCircleMarkers(data = st_centroid(most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
-                    popup = ~sprintf(popup_template, GNIS_Name, FCode))
-)
+# (m2 <- leaflet() %>%
+#    addProviderTiles(providers$Esri.WorldImagery) %>%
+#    addPolygons(data=least_compact_100, weight = 2) %>%
+#    addCircleMarkers(data = st_centroid(least_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
+#                     popup = ~sprintf(popup_template, GNIS_Name, FCode))
+#    )
 ```
 
 
