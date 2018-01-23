@@ -4,7 +4,7 @@ output: html_notebook
 date: 2018-01-22
 author: Nicole Smith
 ---
-```{r setup, warning=FALSE}
+```{r setup, echo = FALSE, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(sf)
 library(leaflet)
@@ -12,8 +12,18 @@ library(leaflet)
 lakes_poly <- st_read("D:/Continental_Limnology/Data_Working/LAGOS_US_Predecessors.gdb", "NHDWaterbody_LAGOS", stringsAsFactors = FALSE) %>%
   st_zm(drop=TRUE) %>%
   filter(AreaHa >= 4) %>%
-  select(Permanent_Identifier, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length)
-#save.image("C:/Users/smithn78/Dropbox/ContLimno Nicole/MyR/multilake_plots/lagos_lakes_4ha_select.RData")
+  mutate(FCode = factor(FCode)) %>%
+  mutate(FType = factor(FType)) %>%
+  select(Permanent_Identifier, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length) %>%
+  st_transform("+proj=longlat +datum=WGS84")
+
+states <- st_read('C:/Users/smithn78/Dropbox/CL_HUB_GEO/QAQC/LAGOS_US_GIS_Data_v0.2.gdb','STATE') %>%
+  st_simplify(TRUE, 5000) %>%
+  st_transform("+proj=longlat +datum=WGS84")
+
+save.image("C:/Users/smithn78/Dropbox/ContLimno Nicole/MyR/multilake_plots/compactness.RData")
+
+
 #load('lagos_lakes_4ha_select.RData')
 ```
 
@@ -109,7 +119,7 @@ stage_plots <- function(data, region=NULL, size = c("maxzoom", "scale")) {
 
 ```
 
-I'll be using the isoperimetric quotient, a common measure of compactness that compares the area of the shape to the area of a circle with the same perimeter. With this measure, a value of 1 indicates the lake is nearly circular, and lower values represent less compactness.
+I'll be using the *isoperimetric quotient*, a common measure of compactness that compares the area of the shape to the area of a circle with the same perimeter. $$\frac{4\pi A}{P^2}$$With this measure, a value of 1 indicates the lake is nearly circular, and lower values represent less compactness.
 ```{r}
 lakes <- lakes_poly %>%
   mutate(compactness = (4*pi*Shape_Area)/(Shape_Length**2)) %>%
@@ -140,7 +150,7 @@ mid_compact_100 <- lakes %>%
 ```
 
 The plots!
-```{r}
+```{r, message=FALSE}
 staged1 <- stage_plots(most_compact_100, "lagoslakeid")
 (p1 <- multiplot(plotlist=staged1, cols=10, title = "100 most compact lakes in LAGOS (4ha+)"))
 ```
@@ -156,105 +166,45 @@ staged3 <- stage_plots(mid_compact_100, "lagoslakeid")
 (p3 <- multiplot(plotlist=staged3, cols=10, title = "100 lakes of median compactness in LAGOS (4ha+)"))
 ```
 
-```{r}
-(m <- leaflet() %>%
-   addProviderTiles(providers$Hydda.Base) %>%
-   addCircleMarkers(data = top_100_centroids, radius = 4, fillOpacity = 1, stroke = FALSE) %>%
-   addPolygons(data=top_100_lakes, weight = 2)
+Where are the most compact lakes?
+```{r, warning=FALSE}
+
+popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
+(m1 <- leaflet() %>%
+   addProviderTiles(providers$Esri.WorldImagery) %>%
+   addPolygons(data=most_compact_100, weight = 2) %>%
+   addCircleMarkers(data = st_centroid(most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE,
+                    popup = ~sprintf(popup_template, GNIS_Name, FCode))
    )
+```
+
+```{r}
+lakes %>% 
+  as.data.frame() %>%
+  group_by(STATE) %>% 
+  summarize(mean_compactness = mean(compactness)) %>% 
+  arrange(mean_compactness)
+```
+```{r}
+lake_points <- st_centroid(lakes) %>%
+  mutate(x = st_coordinates(.)[,"X"]) %>%
+  mutate(y = st_coordinates(.)[,"Y"])
+
+ggplot() +
+  stat_summary_hex(data = lake_points, aes(x, y,  z=compactness), binwidth = c(.6, .6)) +
+  geom_sf(data = states, color = 'grey50', fill = NA, size = .5) +
+  scale_fill_gradient2(midpoint=median(lake_points$compactness), name = "compactness") +
+  theme_void()
 
 ```
 
 
-
-
-
+Where are the most compact lakes?
 ```{r}
-# Help from http://rstudio-pubs-static.s3.amazonaws.com/2852_379274d7c5734f979e106dcf019ec46c.html
-plots <- list()
-boxes <- list()
-
-for (i in 1:nrow(plot_lakes)) {
-  bbox <- st_bbox(plot_lakes[i,])
-  boxes[[i]] <- bbox
-}
-
-x_max_range <- max(as.vector(sapply(boxes, function(x) x['xmax'] - x['xmin'])))
-y_max_range <- max(as.vector(sapply(boxes, function(x) x['ymax'] - x['ymin'])))
-
-max_dim <- max(y_max_range, x_max_range)
-
-for (i in 1:nrow(plot_lakes)) {
- lake_to_plot <- plot_lakes[i,] %>% as("Spatial") %>% fortify(region = 'Permanent_Identifier')
- centroid <- plot_lakes[i,] %>% st_centroid() %>% st_coordinates()
- x_limits <- c(centroid[,'X'] + .5*max_dim, centroid[,'X'] - .5*max_dim)
- y_limits <- c(centroid[,'Y'] + .5*max_dim, centroid[,'Y'] - .5*max_dim)
- p1 <- ggplot(lake_to_plot) +
-   geom_polygon(aes(x=long, y=lat, group=group), fill = NA, color = 'black') +
-   theme_void() +
-   coord_fixed() +
-   xlim(x_limits) +
-   ylim(y_limits)
- plots[[i]] <- p1
-}
-
-(mplot <- multiplot(plotlist = plots, cols = 10, title = "100 least compact lakes in LAGOS (not to scale)"))
-
-mplot <- multiplot(plotlist = plots, cols = 10, title = "100 least compact lakes in LAGOS (not to scale)")
-
-
-```
-
-
-```{r}
-test <- plot_lakes %>%
-  st_zm(drop=TRUE) %>%
-  st_cast("POLYGON") %>%
-  st_bbox()
-
-glimpse(test)
-```
-
-
-```{r}
-plot_lakes <- lakes_4ha %>%
-  sample_n(100)
-# Help from http://rstudio-pubs-static.s3.amazonaws.com/2852_379274d7c5734f979e106dcf019ec46c.html
-plots <- list()
-# boxes <- list()
-# 
-# for (i in 1:nrow(plot_lakes)) {
-#   bbox <- st_bbox(plot_lakes[i,])
-#   boxes[[i]] <- bbox
-# }
-
-# x_max_range <- max(as.vector(sapply(boxes, function(x) x['xmax'] - x['xmin'])))
-# y_max_range <- max(as.vector(sapply(boxes, function(x) x['ymax'] - x['ymin'])))
-# 
-# max_dim <- max(y_max_range, x_max_range)
-
-for (i in 1:nrow(plot_lakes)) {
- lake_to_plot <- plot_lakes[i,] %>% as("Spatial") %>% fortify(region = 'Permanent_Identifier')
- # centroid <- plot_lakes[i,] %>% st_centroid() %>% st_coordinates()
- # x_limits <- c(centroid[,'X'] + .5*max_dim, centroid[,'X'] - .5*max_dim)
- # y_limits <- c(centroid[,'Y'] + .5*max_dim, centroid[,'Y'] - .5*max_dim)
- p <- ggplot(lake_to_plot) +
-   geom_polygon(aes(x=long, y=lat, group=group), fill = NA, color = 'black') +
-   theme_void() +
-   coord_fixed()
-   # xlim(x_limits) +
-   # ylim(y_limits)
- plots[[i]] <- p
-}
-
-png(filename = "C:/Users/smithn78/Dropbox/CL_HUB_GEO/Internal Maps/Lakes and Reservoirs Multiplots/sample_lakes_100.png", width = 1920, height = 1200)
-(mplot <- multiplot(plotlist = plots, cols = 10, title = "100 random lakes in LAGOS (not to scale)"))
-dev.off()
-
-
-# ggplot(plot_lakes) +
-#   geom_sf(aes(geometry = Shape), fill = 'white') +
-#   theme_void()
-
+(m1 <- leaflet() %>%
+   addProviderTiles(providers$Esri.WorldImagery) %>%
+   addPolygons(data=most_compact_100, weight = 2) %>%
+   addCircleMarkers(data = st_centroid(most_compact_100), radius = 4, fillOpacity = 1, stroke = FALSE)
+   )
 ```
 
