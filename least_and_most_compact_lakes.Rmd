@@ -11,19 +11,18 @@ library(tidyverse)
 library(sf)
 library(leaflet)
 
-# lakes_poly <- st_read("D:/Continental_Limnology/Data_Working/LAGOS_US_Predecessors.gdb", "NHDWaterbody_LAGOS", stringsAsFactors = FALSE) %>%
-#   st_zm(drop=TRUE) %>%
-#   filter(AreaHa >= 4) %>%
-#   mutate(FCode = factor(FCode)) %>%
-#   mutate(FType = factor(FType)) %>%
-#   select(Permanent_Identifier, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length)
-# 
-# states <- st_read('C:/Users/smithn78/Dropbox/CL_HUB_GEO/QAQC/LAGOS_US_GIS_Data_v0.2.gdb','STATE') %>%
-#   st_simplify(TRUE, 5000)
-# 
-# save.image("C:/Users/smithn78/Dropbox/ContLimno Nicole/MyR/multilake_plots/compactness.RData")
+lakes_poly_file <- '../../LAGOS_US_GIS_Data_v0.3.gdb/LAGOS_US_All_Lakes_4ha'
+states_file <- '../../LAGOS_US_GIS_Data_v0.3.gdb/STATE'
 
-load('compactness.RData')
+lakes_poly <- st_read(dirname(lakes_poly_file), basename(lakes_poly_file), stringsAsFactors = FALSE) %>%
+  st_zm(drop=TRUE) %>%
+  filter(Hectares >= 4) %>%
+  mutate(FCode = factor(FCode)) %>%
+  mutate(FType = factor(FType)) %>%
+  select(Permanent_, GNIS_Name, AreaSqKm, ReachCode, FType, FCode, STATE, lagoslakeid, Shape_Area, Shape_Length)
+
+states <- st_read(dirname(states_file), basename(states_file)) %>%
+  st_simplify(TRUE, 5000)
 ```
 
 I'll use the `multiplot` function from the [Cookbook for R](http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/) site with an [adaptation to add a title](http://www.guru-gis.net/multiplot-function-for-ggplot/).
@@ -142,7 +141,7 @@ mid_compact_100 <- lakes %>%
 
 #100 most compact lakes in LAGOS (4ha+):
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
-staged1 <- stage_plots(most_compact_100, "lagoslakeid")
+staged1 <- stage_plots(most_compact_100, "lagoslakeid", "scale")
 p1 <- multiplot(plotlist=staged1, cols=10)
 ```
 
