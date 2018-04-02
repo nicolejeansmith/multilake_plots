@@ -100,7 +100,7 @@ stage_plots <- function(data, region=NULL, size = c("maxzoom", "scale")) {
   for (i in 1:nrow(data)) {
     plot_item <- data[i,] %>% as("Spatial") %>% fortify(region=region)
     plot <- ggplot(plot_item) + 
-      geom_polygon(aes(x=long, y=lat, group=group), fill = NA, color = 'black') +
+      geom_polygon(aes(x=long, y=lat, group=group), fill = 'lightsteelblue3', color = 'dodgerblue4') +
       theme_void() +
       coord_fixed()
     if (size == "scale") {
@@ -140,25 +140,25 @@ mid_compact_100 <- lakes %>%
   filter(between(compact_rank, midpoint-50, midpoint+49))
 ```
 
-100 most compact lakes in LAGOS (4ha+):
+#100 most compact lakes in LAGOS (4ha+):
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
 staged1 <- stage_plots(most_compact_100, "lagoslakeid")
 p1 <- multiplot(plotlist=staged1, cols=10)
 ```
 
-100 least compact lakes in LAGOS (4ha+):
+#100 least compact lakes in LAGOS (4ha+):
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
 staged2 <- stage_plots(least_compact_100, "lagoslakeid")
 p2 <- multiplot(plotlist=staged2, cols=10)
 ```
 
-100 lakes of median compactness in LAGOS (4ha+):
+#100 lakes of median compactness in LAGOS (4ha+):
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, out.width="100%"}
 staged3 <- stage_plots(mid_compact_100, "lagoslakeid")
 p3 <- multiplot(plotlist=staged3, cols=10)
 ```
 
-```{r}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 #Prep the layers for leaflet
 proj_string <- "+proj=longlat +datum=WGS84"
 L.most_compact_100 <- most_compact_100 %>%
@@ -170,8 +170,7 @@ L.states <- states %>%
   st_transform(proj_string)
 ```
 
-
-Where are the 100 **most** compact lakes?
+#Where are the 100 **most** compact lakes?
 ```{r, echo=FALSE, warning=FALSE, out.width="100%"}
 popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
 
@@ -184,7 +183,7 @@ popup_template <- "<b>GNIS Name:</b><br/>%s<br/><b>FCode:</b><br/>%s"
    )
 ```
 
-Where are the 100 **least** compact lakes?
+#Where are the 100 **least** compact lakes?
 ```{r, echo=FALSE, warning=FALSE, out.width="100%"}
 (m2 <- leaflet() %>%
    addProviderTiles(providers$Esri.WorldImagery, options=providerTileOptions(opacity=.75)) %>%
@@ -197,7 +196,7 @@ Where are the 100 **least** compact lakes?
 ```
 
 
-Are there compactness patterns across the United States?
+#Are there compactness patterns across the United States?
 ```{r, echo=FALSE, warning=FALSE, out.width="100%"}
 lake_points <- st_centroid(lakes) %>%
   mutate(x = st_coordinates(.)[,"X"]) %>%
@@ -211,8 +210,7 @@ ggplot() +
 
 ```
 
-Distribution of compactness.
-
+#Distribution of compactness.
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 (hist <- ggplot(data=lakes, aes(x=compactness)) +
    geom_histogram(alpha = .5, fill = "blue") +
